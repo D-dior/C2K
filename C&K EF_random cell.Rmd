@@ -1,0 +1,560 @@
+## 데이터 로드 및 전처리
+
+```{r}
+setwd("/spstorage/INTERNSHIP/SY/DEG_signature")
+load("trt_cp_total_siganture_100_full.Rdata")
+load("KMAP_PIS_DEG_Sgiantures_v2.0.RData")
+load("level5_trt_cp_MCF7.Rdata")
+
+library(readr)
+lfc_meta <- read_csv("/spstorage/INTERNSHIP/SY/metadata/LFCs_Meta.csv")
+
+```
+Rows: 1134 Columns: 8                                                                                              
+── Column specification ─────────────────────────────────────────────────────────────────────────────────────────────
+Delimiter: ","
+chr (6): Kmap_sample, Kmap_drug, Cmap_drug, Cmap_sample, Time, Cmap_dose
+dbl (2): Kmap_dose, PubChem_ID
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+```{r}
+stat_meta <- read_csv("/spstorage/INTERNSHIP/SY/metadata/STAT_Meta.csv")
+```
+
+Rows: 1158 Columns: 8                                                                                              
+── Column specification ─────────────────────────────────────────────────────────────────────────────────────────────
+Delimiter: ","
+chr (6): Kmap_sample, Kmap_drug, pert_id, Cmap_sample, Time, Cmap_dose
+dbl (2): Kmap_dose, PubChem_CID
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+```{r}
+tpm_meta <- read_csv("/spstorage/INTERNSHIP/SY/metadata/TPM_Meta.csv")
+```
+Rows: 1191 Columns: 8                                                                                              
+── Column specification ─────────────────────────────────────────────────────────────────────────────────────────────
+Delimiter: ","
+chr (6): Kmap_sample, Kmap_drug, Cmap_drug, Cmap_sample, Time, Cmap_dose
+dbl (2): Kmap_dose, PubChem_ID
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
+```{r}
+print(head(lfc_meta))
+```
+A tibble: 6 × 8
+  Kmap_sample         Kmap_drug Kmap_dose Cmap_drug PubChem_ID Cmap_sample Time 
+  <chr>               <chr>         <dbl> <chr>          <dbl> <chr>       <chr>
+1 P01.100.KC0239.MCF… KC0239          100 BRD-K912…      53025 CPD002_MCF… 6H   
+2 P01.100.KC0826.MCF… KC0826          100 BRD-A119…       3958 CPC011_MCF… 6H   
+3 P01.100.KC0342.MCF… KC0342          100 BRD-K132…     688020 CPD003_MCF… 6H   
+4 P01.100.KC1537.MCF… KC1537          100 BRD-K926…       5719 CPD002_MCF… 24H  
+5 P01.100.KC0959.MCF… KC0959          100 BRD-A163…       4236 CPC011_MCF… 24H  
+6 P01.100.KC0824.MCF… KC0824          100 BRD-K289…    5284585 CPD002_MCF… 24H  
+ℹ 1 more variable: Cmap_dose <chr>
+
+```{r}
+print(head(stat_meta))
+```
+A tibble: 6 × 8
+  Kmap_sample         Kmap_drug Kmap_dose pert_id  PubChem_CID Cmap_sample Time 
+  <chr>               <chr>         <dbl> <chr>          <dbl> <chr>       <chr>
+1 P01-100-KC0239-MCF7 KC0239          100 BRD-K91…       53025 CPD002_MCF… 24H  
+2 P01-100-KC0826-MCF7 KC0826          100 BRD-A11…        3958 CPC011_MCF… 24H  
+3 P01-100-KC0342-MCF7 KC0342          100 BRD-K13…      688020 CPD003_MCF… 6H   
+4 P01-100-KC1537-MCF7 KC1537          100 BRD-K92…        5719 CPD002_MCF… 6H   
+5 P01-100-KC0959-MCF7 KC0959          100 BRD-A16…        4236 CPD002_MCF… 24H  
+6 P01-100-KC0824-MCF7 KC0824          100 BRD-K28…     5284585 CPD002_MCF… 6H   
+
+```{r}
+print(head(tpm_meta))
+```
+A tibble: 6 × 8
+  Kmap_sample         Kmap_drug Kmap_dose Cmap_drug PubChem_ID Cmap_sample Time 
+  <chr>               <chr>         <dbl> <chr>          <dbl> <chr>       <chr>
+1 P01-2500-KC0051-MC… KC0051         2500 BRD-K410…      36273 CPC011_MCF… 6H   
+2 P01-2500-KC0239-MC… KC0239         2500 BRD-K912…      53025 CPD002_MCF… 24H  
+3 P01-2500-KC0298-MC… KC0298         2500 BRD-K048…       2764 CPD001_MCF… 24H  
+4 P01-2500-KC0342-MC… KC0342         2500 BRD-K132…     688020 CPD003_MCF… 6H   
+5 P01-2500-KC0824-MC… KC0824         2500 BRD-K289…    5284585 CPD002_MCF… 6H   
+6 P01-2500-KC0826-MC… KC0826         2500 BRD-A119…       3958 CPC011_MCF… 24H  
+
+**lfc_meta 만 Kmap_sample 이름이 .으로 연결되어있어서 포멧 변경**
+
+```{r}
+# Replace '.' with '-' in Kmap_sample column of lfcs_meta
+lfc_meta$Kmap_sample <- gsub("\\.", "-", lfc_meta$Kmap_sample)
+# Display the first few rows to check the changes
+head(lfc_meta)
+```
+A tibble: 6 × 8
+  Kmap_sample         Kmap_drug Kmap_dose Cmap_drug PubChem_ID Cmap_sample Time 
+  <chr>               <chr>         <dbl> <chr>          <dbl> <chr>       <chr>
+1 P01-100-KC0239-MCF… KC0239          100 BRD-K912…      53025 CPD002_MCF… 6H   
+2 P01-100-KC0826-MCF… KC0826          100 BRD-A119…       3958 CPC011_MCF… 6H   
+3 P01-100-KC0342-MCF… KC0342          100 BRD-K132…     688020 CPD003_MCF… 6H   
+4 P01-100-KC1537-MCF… KC1537          100 BRD-K926…       5719 CPD002_MCF… 24H  
+5 P01-100-KC0959-MCF… KC0959          100 BRD-A163…       4236 CPC011_MCF… 24H  
+6 P01-100-KC0824-MCF… KC0824          100 BRD-K289…    5284585 CPD002_MCF… 24H  
+
+## Signature gene data 추출
+```{r}
+merged_data <- merge(lfc_meta, stat_meta, by = "Kmap_sample", suffixes = c("_lfc", "_stat"))
+head(merged_data)
+```
+ [1] Kmap_sample      Kmap_drug_lfc    Kmap_dose_lfc    Cmap_drug       
+ [5] PubChem_ID       Cmap_sample_lfc  Time_lfc         Cmap_dose_lfc   
+ [9] Kmap_drug_stat   Kmap_dose_stat   pert_id          PubChem_CID     
+[13] Cmap_sample_stat Time_stat        Cmap_dose_stat  
+<0 rows> (or 0-length row.names)
+
+```{r}
+# 잘린 lfc_meta의 kmap_sample 이름이 다른것을 아닌지 확인
+head(unique(lfc_meta$Kmap_sample))
+```
+[1] "P01-100-KC0239-MCF7-deseq2_lfc" "P01-100-KC0826-MCF7-deseq2_lfc"
+[3] "P01-100-KC0342-MCF7-deseq2_lfc" "P01-100-KC1537-MCF7-deseq2_lfc"
+[5] "P01-100-KC0959-MCF7-deseq2_lfc" "P01-100-KC0824-MCF7-deseq2_lfc"
+
+```{r}
+# kmap_sample의 이름 맞추기_"deseq2_lfc"부분 제거
+lfc_meta$Kmap_sample <- sub("-deseq2_lfc$", "", lfc_meta$Kmap_sample)
+
+# 병합
+merged_data <- merge(lfc_meta, stat_meta, by = "Kmap_sample", suffixes = c("_lfc", "_stat"))
+merged_data_f <- merge(merged_data, tpm_meta, by = "Kmap_sample", suffixes = c("", "_tpm"))
+head(merged_data_f)
+```
+          Kmap_sample Kmap_drug_lfc Kmap_dose_lfc     Cmap_drug PubChem_ID
+1 P01-100-KC0051-MCF7        KC0051           100 BRD-K41051431      36273
+2 P01-100-KC0239-MCF7        KC0239           100 BRD-K91289464      53025
+3 P01-100-KC0298-MCF7        KC0298           100 BRD-K04804440       2764
+4 P01-100-KC0342-MCF7        KC0342           100 BRD-K13240564     688020
+5 P01-100-KC0824-MCF7        KC0824           100 BRD-K28935038    5284585
+6 P01-100-KC0826-MCF7        KC0826           100 BRD-A11990600       3958
+                            Cmap_sample_lfc Time_lfc Cmap_dose_lfc
+1 CPC011_MCF7_24H:BRD-K41051431-001-01-6:10      24H         10 uM
+2  CPD002_MCF7_6H:BRD-K91289464-001-07-8:10       6H         10 uM
+3 CPD001_MCF7_24H:BRD-K04804440-311-03-1:10      24H         10 uM
+4  CPD003_MCF7_6H:BRD-K13240564-001-01-8:10       6H         10 uM
+5 CPD002_MCF7_24H:BRD-K28935038-001-01-4:10      24H         10 uM
+6  CPC011_MCF7_6H:BRD-A11990600-001-02-6:10       6H         10 uM
+  Kmap_drug_stat Kmap_dose_stat       pert_id PubChem_CID
+1         KC0051            100 BRD-K41051431       36273
+2         KC0239            100 BRD-K91289464       53025
+3         KC0298            100 BRD-K04804440        2764
+4         KC0342            100 BRD-K13240564      688020
+5         KC0824            100 BRD-K28935038     5284585
+6         KC0826            100 BRD-A11990600        3958
+                           Cmap_sample_stat Time_stat Cmap_dose_stat Kmap_drug
+1  CPC011_MCF7_6H:BRD-K41051431-001-01-6:10        6H          10 uM    KC0051
+2 CPD002_MCF7_24H:BRD-K91289464-001-07-8:10       24H          10 uM    KC0239
+3 CPD001_MCF7_24H:BRD-K04804440-311-03-1:10       24H          10 uM    KC0298
+4  CPD003_MCF7_6H:BRD-K13240564-001-01-8:10        6H          10 uM    KC0342
+5  CPD002_MCF7_6H:BRD-K28935038-001-01-4:10        6H          10 uM    KC0824
+6 CPC011_MCF7_24H:BRD-A11990600-001-02-6:10       24H          10 uM    KC0826
+  Kmap_dose Cmap_drug_tpm PubChem_ID_tpm
+1       100 BRD-K41051431          36273
+2       100 BRD-K91289464          53025
+3       100 BRD-K04804440           2764
+4       100 BRD-K13240564         688020
+5       100 BRD-K28935038        5284585
+6       100 BRD-A11990600           3958
+                                Cmap_sample Time Cmap_dose
+1  CPC011_MCF7_6H:BRD-K41051431-001-01-6:10   6H     10 uM
+2 CPD002_MCF7_24H:BRD-K91289464-001-07-8:10  24H     10 uM
+3 CPD001_MCF7_24H:BRD-K04804440-311-03-1:10  24H     10 uM
+4  CPD003_MCF7_6H:BRD-K13240564-001-01-8:10   6H     10 uM
+5  CPD002_MCF7_6H:BRD-K28935038-001-01-4:10   6H     10 uM
+6 CPC011_MCF7_24H:BRD-A11990600-001-02-6:10  24H     10 uM
+
+```{r}
+# merged data 저장
+write.csv(merged_data_f, file = "/위치/INTERNSHIP/SY/metadata/meta_merged.csv", row.names = FALSE)
+```
+
+## Rdata를 통해서 객체 파악하여 signature gene 준비
+
+```{r}
+# Extract up-regulated and down-regulated gene lists from sig_up and sig_dn
+up_sigl <- sig_up
+dn_sigl <- sig_dn
+
+# Create universal gene sets
+up_univ = unique(unlist(up_sigl))
+dn_univ = unique(unlist(dn_sigl))
+
+# EF 계산 함수 정의
+cal_ef <- function(g1, g2, univ) {
+    y <- g2
+    p.len <- length(intersect(y, univ))
+    m <- intersect(g1, univ)
+    D.len <- length(m)
+    o.len <- length(intersect(y, m))
+    ef <- (o.len + 1) / (p.len * D.len / length(univ) + 1)
+    return(ef)
+}
+```
+
+## 랜덤 cell에 대해 EF 계산
+
+```{r}
+# Load necessary libraries
+library(parallel)
+
+# Define the number of repetitions
+n_reps <- 1e+7
+
+# Perform EF calculations
+efl <- mclapply(1:n_reps, mc.cores = 200, function(xx) {
+    s1 <- sample(1:length(up_sigl), 1)
+    s2 <- sample(1:length(up_sigl), 1)
+    
+    ef <- data.frame(
+        s1 = s1,
+        s2 = s2,
+        up_EF = cal_ef(up_sigl[[s1]], up_sigl[[s2]], up_univ),
+        dn_EF = cal_ef(dn_sigl[[s1]], dn_sigl[[s2]], dn_univ)
+    )
+    
+    return(ef)
+})
+
+# 서버에 불날 뻔해서 코어수를 50으로, 반복횟수를 1e+5로 변경하여 돌림
+
+# Combine the results
+efdf <- do.call(rbind, efl)
+
+# Remove duplicate rows based on s1 and s2 columns
+efdf <- efdf[!duplicated(efdf[, c('s1', 's2')]), ]
+
+head(efdf)
+```
+      s1     s2     up_EF     dn_EF
+1 441761 466720 1.1042637 1.1042637
+2  14540 437546 1.6563956 2.2085274
+3 303945 606752 0.5521319 1.6563956
+4 658534 206901 2.2085274 2.2085274
+5 152888 409766 2.2085274 0.5521319
+6 635129 428352 0.5521319 1.1042637
+
+```{r}
+summary(efdf)
+```
+       s1               s2             up_EF             dn_EF        
+ Min.   :     3   Min.   :     4   Min.   : 0.1635   Min.   : 0.4352  
+ 1st Qu.:179401   1st Qu.:179208   1st Qu.: 1.1043   1st Qu.: 1.1043  
+ Median :360905   Median :358523   Median : 1.6564   Median : 1.6564  
+ Mean   :359972   Mean   :359490   Mean   : 1.8569   Mean   : 1.8524  
+ 3rd Qu.:539599   3rd Qu.:540252   3rd Qu.: 2.2085   3rd Qu.: 2.2085  
+ Max.   :720211   Max.   :720213   Max.   :33.1279   Max.   :36.4407
+
+ ```{r}
+ # EF 저장
+out_dir <- "/spstorage/INTERNSHIP/SY/DEG_signature"
+saveRDS(efdf, sprintf('%s/CMAP_Random_EF_res_allsample.RDS', out_dir))
+```
+
+## 랜덤 Signature gene에 대한 EF 시각화
+
+### Histogram
+```{r}
+# 히스토그램을 사용한 up_EF와 dn_EF의 시각화
+hist(efdf$up_EF, breaks = 50, main = "Histogram of up_EF", xlab = "up_EF", col = "blue")
+hist(efdf$dn_EF, breaks = 50, main = "Histogram of dn_EF", xlab = "dn_EF", col = "red")
+
+# 저장
+hist_up <- "Hist_upEF_Random.png"
+png(filename = file.path(out_dir, hist_up), width = 800, height = 600)
+hist(efdf$up_EF, breaks = 50, main = "Histogram of up_EF", xlab = "up_EF", col = "blue")
+dev.off()
+
+h2 <- "Hist_downEF_Random.png"
+png(filename = file.path(out_dir, h2), width = 800, height = 600)
+hist(efdf$dn_EF, breaks = 50, main = "Histogram of dn_EF", xlab = "dn_EF", col = "red")
+dev.off()
+
+# EF 값의 median, mean
+median_value_original <- median(efdf$up_EF)
+mean_value_original <- mean(efdf$up_EF)
+cat("Original Data - Median:", round(median_value_original, 2), "\n")
+cat("Original Data - Mean:", round(mean_value_original, 2), "\n")
+# Original Data - Median: 1.66 
+# Original Data - Mean: 1.85 
+
+median_value_original <- median(efdf$dn_EF)
+mean_value_original <- mean(efdf$dn_EF)
+cat("Original Data - Median:", round(median_value_original, 2), "\n")
+cat("Original Data - Mean:", round(mean_value_original, 2), "\n")
+# Original Data - Median: 1.66 
+# Original Data - Mean: 1.85 
+```
+
+대부분 EF 값이 굉장히 낮은 것으로 gene signature 간의 유사성이 낮음을 알 수 있다
+자세히 보기 위하여 log를 취해 보았다
+
+```{r}
+# up_EF 로그스케일 적용 및 median, mean 값 추가
+
+library(ggplot2)
+
+# 0 이상인 값만 필터링하고 데이터 프레임으로 변환
+filtered_data <- data.frame(up_EF = efdf$up_EF[efdf$up_EF > 0])
+
+# 미디안과 평균 계산
+log_transformed_data <- log10(efdf$up_EF[efdf$up_EF > 0])  # 0보다 큰 값만 로그 변환
+median_value_log <- median(log_transformed_data)
+mean_value_log <- mean(log_transformed_data)
+
+# ggplot을 사용하여 로그 스케일 히스토그램 그리기
+ggplot(filtered_data, aes(x = up_EF)) +
+  geom_histogram(bins = 50, fill = "blue", color = "black") +
+  scale_y_log10() +
+  geom_vline(aes(xintercept = median_value_log), color = "red", linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = mean_value_log), color = "green", linetype = "dashed", size = 1) +
+  labs(title = "Histogram of up_EF (Log Scale)", x = "up_EF", y = "Frequency") +
+  theme_minimal() +
+  # 그래프 외부에 미디안과 평균 값 표시
+  annotate("text", x = Inf, y = Inf, label = paste("Median =", round(median_value_log, 2)), 
+           color = "red", hjust = 1.1, vjust = 2, size = 5) +
+  annotate("text", x = Inf, y = Inf, label = paste("Mean =", round(mean_value_log, 2)), 
+           color = "green", hjust = 1.1, vjust = 3.5, size = 5)
+
+# Median : 0.22 & Mean : 0.19
+
+
+# dn_EF 로그스케일 적용 및 median, mean 값 추가
+
+# 0 이상인 값만 필터링하고 데이터 프레임으로 변환
+filtered_data <- data.frame(dn_EF = efdf$dn_EF[efdf$dn_EF > 0])
+
+# 미디안과 평균 계산
+log_transformed_data <- log10(efdf$dn_EF[efdf$dn_EF > 0])  # 0보다 큰 값만 로그 변환
+median_value_log <- median(log_transformed_data)
+mean_value_log <- mean(log_transformed_data)
+
+# ggplot을 사용하여 로그 스케일 히스토그램 그리기
+ggplot(filtered_data, aes(x = dn_EF)) +
+  geom_histogram(bins = 50, fill = "red", color = "black") +
+  scale_y_log10() +
+  geom_vline(aes(xintercept = median_value_log), color = "blue", linetype = "dashed", size = 1) +
+  geom_vline(aes(xintercept = mean_value_log), color = "green", linetype = "dashed", size = 1) +
+  labs(title = "Histogram of dn_EF (Log Scale)", x = "dn_EF", y = "Frequency") +
+  theme_minimal() +
+  # 그래프 외부에 미디안과 평균 값 표시
+  annotate("text", x = Inf, y = Inf, label = paste("Median =", round(median_value_log, 2)), 
+           color = "red", hjust = 1.1, vjust = 2, size = 5) +
+  annotate("text", x = Inf, y = Inf, label = paste("Mean =", round(mean_value_log, 2)), 
+           color = "green", hjust = 1.1, vjust = 3.5, size = 5)
+
+# Median : 0.22 & Mean : 0.18
+```
+
+### Viollin Plot
+
+```{r}
+v1<- "Violin_upEF_Random.png"
+
+png(filename = file.path(out_dir, v1), width = 800, height = 600)
+ggplot(efdf, aes(x = factor(0), y = up_EF)) +
+geom_violin(fill = "blue") +
+geom_boxplot(width = 0.1, fill = "white", color = "black", alpha = 0.5) +
+labs(title = "Violin Plot of up_EF", x = "up_EF", y = "EF Value")
+dev.off()
+
+v2<- "Violin_downEF_Random.png"
+
+png(filename = file.path(out_dir, v2), width = 800, height = 600)
+ggplot(efdf, aes(x = factor(0), y = dn_EF)) +
+geom_violin(fill = "red") +
+geom_boxplot(width = 0.1, fill = "white", color = "black", alpha = 0.5) +
+labs(title = "Violin Plot of dn_EF", x = "dn_EF", y = "EF Value")
+dev.off()
+
+
+v<- "Violin_Random.png"
+
+png(filename = file.path(out_dir, v), width = 800, height = 600)
+ggplot(efdf, aes(x = factor(1), y = up_EF)) +
+geom_violin(fill = "blue", alpha = 0.6) +
+geom_violin(aes(y = dn_EF), fill = "red", alpha = 0.6) +
+geom_boxplot(aes(y = up_EF), width = 0.1, fill = "white", color = "black", alpha = 0.5) +
+geom_boxplot(aes(y = dn_EF), width = 0.1, fill = "white", color = "black", alpha = 0.5) +
+labs(title = "Violin Plot of up_EF and dn_EF", x = "", y = "EF Value") +
+scale_x_discrete(labels = c("up_EF", "dn_EF"))
+dev.off()
+```
+up, down EF 모두 값이 낮게 나오는 것을 확인할 수 있다
+
+### Box Plot
+
+```{r}
+b<- "Box_Random.png"
+png(filename = file.path(out_dir, b), width = 800, height = 600)
+boxplot(efdf$up_EF, efdf$dn_EF, names = c("up_EF", "dn_EF"), main = "Boxplot of EF Values", col = c("blue", "red"))
+dev.off()
+```
+
+마찬가지로 up, down 모두 EF 값이 낮게 나옴
+**위에 내용은 CMAP 내에서 랜덤을 돌린 경우였다**
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## KMAP과 CMAP으로 다시 돌려 EF 계산
+**kmap과 cmap의 up, down을 매칭**
+```{r}
+library(parallel)
+library(dplyr)
+
+# Kmap과 Cmap의 샘플 목록을 정의
+cmap_samples <- names(up_sigl)  # Cmap 샘플 리스트
+cmap_samples_m <- cmap_samples[grepl('MCF7', cmap_samples)]
+
+
+kmap_samples <- names(kmap_up_sigl)  # Kmap 샘플 리스트
+kmap_samples_m <- kmap_samples[grepl('MCF7', )]
+# 결과 저장을 위한 빈 리스트 초기화
+random_ef_res <- NULL
+
+# 병렬 처리를 통해 랜덤하게 Kmap과 Cmap을 선택하고 EF를 계산
+random_ef_res <- mclapply(1:100000, mc.cores = 20, function(xx) {
+    # Cmap과 Kmap 샘플을 랜덤으로
+    cmap_id <- sample(cmap_samples, 1)
+    kmap_id <- sample(kmap_samples, 1)
+
+    cmap_up_deg <- up_sigl[[cmap_id]]
+    kmap_up_deg <- kmap_up_sigl[[kmap_id]]
+
+    up_ef <- cal_ef(cmap_up_deg, kmap_up_deg, univ)
+
+    cmap_dn_deg <- dn_sigl[[cmap_id]]
+    kmap_dn_deg <- kmap_dn_sigl[[kmap_id]]
+
+    dn_ef <- cal_ef(cmap_dn_deg, kmap_dn_deg, univ)
+
+    return(data.frame(Cmap_sample = cmap_id, Kmap_sample = kmap_id, up_ef = up_ef, dn_ef = dn_ef))
+})
+
+# 결과를 데이터프레임으로 변환
+random_ef_res_df <- bind_rows(random_ef_res)
+
+head(random_ef_res_df)
+```
+                                  Cmap_sample          Kmap_sample     up_ef
+1                        KMS002_NOMO1_24H:B11  P10-500-KC0073-HDFn 1.1475735
+2                        REP.B022_PC3_24H:L14  P09-500-KC0455-MCF7 1.0057926
+3                     REP.B011_HEK293_24H:H18 P16-2500-KC1735-HDFn 0.4754705
+4                       REP.A011_A375_24H:L04 P15-2500-KC1074-MCF7 0.5834911
+5 DOS021_VCAP_24H:BRD-K33204746-001-01-1:5.02  P05-100-KC0067-HDFn 0.7533610
+6                        LJP006_SKBR3_24H:L23  P19-100-KC1790-HDFn 0.9364935
+      dn_ef
+1 0.8266059
+2 0.8321858
+3 0.5753220
+4 0.4478349
+5 1.8008648
+6 0.2825708
+
+
+## Random EF 시각화
+```{r}
+# Up EF의 mean과 median 계산
+up_mean <- mean(random_ef_res_df$up_ef)
+up_median <- median(random_ef_res_df$up_ef)
+
+# Down EF의 mean과 median 계산
+dn_mean <- mean(random_ef_res_df$dn_ef)
+dn_median <- median(random_ef_res_df$dn_ef)
+
+# up_ef 히스토그램 그리기
+up_hist <- ggplot(random_ef_res_df, aes(x = up_ef)) +
+  geom_histogram(binwidth = 0.1, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = up_mean, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = up_median, color = "green", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = max(random_ef_res_df$up_ef), y = Inf, hjust = 1.1, vjust = 1,
+           label = paste("Mean:", round(up_mean, 2), "\nMedian:", round(up_median, 2)),
+           color = "black", size = 4) +
+  labs(title = "Histogram of Random Up EF", x = "Up EF", y = "Frequency") +
+  theme_minimal()
+
+print(up_hist)
+# mean : 1.2, median : 1.06
+
+# dn_ef 히스토그램 그리기
+dn_hist <- ggplot(random_ef_res_df, aes(x = dn_ef)) +
+  geom_histogram(binwidth = 0.1, fill = "lightgreen", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = dn_mean, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = dn_median, color = "green", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = max(random_ef_res_df$dn_ef), y = Inf, hjust = 1.1, vjust = 1,
+           label = paste("Mean:", round(dn_mean, 2), "\nMedian:", round(dn_median, 2)),
+           color = "black", size = 4) +
+  labs(title = "Histogram of Random Down EF", x = "Down EF", y = "Frequency") +
+  theme_minimal()
+
+print(dn_hist)
+# mean : 1.21, median : 1.09
+
+random_ef_res_df$log_up_ef <- log(random_ef_res_df$up_ef + 1)
+random_ef_res_df$log_dn_ef <- log(random_ef_res_df$dn_ef + 1)
+
+# 로그 변환된 값의 mean과 median 계산
+log_up_mean <- mean(random_ef_res_df$log_up_ef)
+log_up_median <- median(random_ef_res_df$log_up_ef)
+
+log_dn_mean <- mean(random_ef_res_df$log_dn_ef)
+log_dn_median <- median(random_ef_res_df$log_dn_ef)
+
+
+# log_up_ef 히스토그램 그리기
+log_up_hist <- ggplot(random_ef_res_df, aes(x = log_up_ef)) +
+  geom_histogram(binwidth = 0.1, fill = "skyblue", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = log_up_mean, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = log_up_median, color = "green", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = max(random_ef_res_df$log_up_ef), y = Inf, hjust = 1.1, vjust = 1,
+           label = paste("Mean:", round(log_up_mean, 2), "\nMedian:", round(log_up_median, 2)),
+           color = "black", size = 4) +
+  labs(title = "Histogram of Log-Transformed Random Up EF", x = "Log(Up EF)", y = "Frequency") +
+  theme_minimal()
+
+print(log_up_hist) 
+# mean : 0.75, median : 0.72
+
+
+# log_dn_ef 히스토그램 그리기
+log_dn_hist <- ggplot(random_ef_res_df, aes(x = log_dn_ef)) +
+  geom_histogram(binwidth = 0.1, fill = "lightgreen", color = "black", alpha = 0.7) +
+  geom_vline(xintercept = log_dn_mean, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = log_dn_median, color = "green", linetype = "dashed", linewidth = 1) +
+  annotate("text", x = max(random_ef_res_df$log_dn_ef), y = Inf, hjust = 1.1, vjust = 1,
+           label = paste("Mean:", round(log_dn_mean, 2), "\nMedian:", round(log_dn_median, 2)),
+           color = "black", size = 4) +
+  labs(title = "Histogram of Log-Transformed Random Down EF", x = "Log(Down EF)", y = "Frequency") +
+  theme_minimal()
+
+print(log_dn_hist)
+# mean : 0.75, median : 0.74
