@@ -1,0 +1,554 @@
+## 데이터 로드 및 전처리
+
+```{r}
+setwd("/spstorage/INTERNSHIP/SY/DEG_signature")
+load("trt_cp_total_siganture_100_full.Rdata")
+load("KMAP_PIS_DEG_Sgiantures_v2.0.RData")
+load("level5_trt_cp_MCF7.Rdata")
+
+library(readr)
+meta_merged_f <- read_csv("/spstorage/INTERNSHIP/SY/metadata/meta_merged.csv")
+
+# Extract up-regulated and down-regulated gene lists from sig_up and sig_dn
+up_sigl <- sig_up
+dn_sigl <- sig_dn
+
+# Create universal gene sets
+up_univ = unique(unlist(up_sigl))
+dn_univ = unique(unlist(dn_sigl))
+
+head(meta)
+```
+ A tibble: 6 × 22
+  Kmap_sample   Kmap_drug_lfc Kmap_dose_lfc Cmap_drug PubChem_ID Cmap_sample_lfc
+  <chr>         <chr>                 <dbl> <chr>          <dbl> <chr>          
+1 P01-100-KC00… KC0051                  100 BRD-K410…      36273 CPC011_MCF7_24…
+2 P01-100-KC02… KC0239                  100 BRD-K912…      53025 CPD002_MCF7_6H…
+3 P01-100-KC02… KC0298                  100 BRD-K048…       2764 CPD001_MCF7_24…
+4 P01-100-KC03… KC0342                  100 BRD-K132…     688020 CPD003_MCF7_6H…
+5 P01-100-KC08… KC0824                  100 BRD-K289…    5284585 CPD002_MCF7_24…
+6 P01-100-KC08… KC0826                  100 BRD-A119…       3958 CPC011_MCF7_6H…
+#   16 more variables: Time_lfc <chr>, Cmap_dose_lfc <chr>,
+#   Kmap_drug_stat <chr>, Kmap_dose_stat <dbl>, pert_id <chr>,
+#   PubChem_CID <dbl>, Cmap_sample_stat <chr>, Time_stat <chr>,
+#   Cmap_dose_stat <chr>, Kmap_drug <chr>, Kmap_dose <dbl>,
+#   Cmap_drug_tpm <chr>, PubChem_ID_tpm <dbl>, Cmap_sample <chr>, Time <chr>,
+#   Cmap_dose <chr>
+
+
+## EF 계산
+
+```{r}
+# 함수 정의
+cal_ef <- function(g1, g2, univ) {
+    y <- g2
+    p.len <- length(intersect(y, univ))
+    m <- intersect(g1, univ)
+    D.len <- length(m)
+    o.len <- length(intersect(y, m))
+    ef <- (o.len + 1) / (p.len * D.len / length(univ) + 1)
+    return(ef)
+}
+```
+
+**sample id가 동일한 signature gene dataframe 생성**
+
+1. Kmap과 Cmap의 sample id 추출
+```{r}
+kmap_sample_ids <- meta_merged_f$Kmap_sample
+cmap_sample_ids <- meta_merged_f$Cmap_sample
+
+matched_samples <- kmap_sample_ids == cmap_sample_ids
+
+# 매칭된 샘플과 매칭되지 않은 샘플 개수 확인
+num_matched <- sum(matched_samples)
+num_unmatched <- sum(!matched_samples)
+
+cat("Matched samples:", num_matched, "\n")
+cat("Unmatched samples:", num_unmatched, "\n")
+```
+Matched samples: 0 
+Unmatched samples: 1206 
+
+2. up&down id 매칭
+```{r}
+head(up_sigl)
+```
+$`LUNG001_1HAE_24H:BRD-K02130563:10`
+  [1] "1026"   "10382"  "10641"  "10810"  "10892"  "10900"  "11182"  "11200" 
+  [9] "11284"  "1958"   "2264"   "230"    "23031"  "23077"  "23130"  "23386" 
+ [17] "23410"  "23659"  "2534"   "2639"   "26502"  "26999"  "27044"  "27241" 
+ [25] "2745"   "2852"   "2896"   "28969"  "291"    "29911"  "29919"  "30849" 
+ [33] "3337"   "3638"   "375346" "3800"   "3988"   "4043"   "4125"   "4130"  
+ [41] "427"    "4303"   "47"     "4851"   "4864"   "51070"  "51560"  "51599" 
+ [49] "51660"  "5170"   "5261"   "5289"   "5366"   "53822"  "5423"   "54442" 
+ [57] "54499"  "5467"   "55033"  "55062"  "55129"  "5641"   "56997"  "57192" 
+ [65] "57406"  "5864"   "5883"   "5909"   "6499"   "6616"   "6772"   "6804"  
+ [73] "6850"   "6915"   "6919"   "7074"   "7538"   "7852"   "79174"  "81544" 
+ [81] "81558"  "842"    "847"    "8503"   "8541"   "8574"   "868"    "8731"  
+ [89] "8804"   "8869"   "8895"   "8900"   "896"    "9267"   "9646"   "9761"  
+ [97] "9764"   "9783"   "9854"   "9868"  
+
+$`LUNG001_1HAE_24H:BRD-K36529613:10`
+  [1] "10112" "10285" "10298" "10320" "1050"  "10565" "10652" "1066"  "10765"
+ [10] "10808" "10902" "10962" "11004" "11261" "11325" "1429"  "154"   "178"  
+ [19] "23008" "23031" "23076" "23210" "23212" "23338" "23410" "24149" "25836"
+ [28] "26036" "26227" "2673"  "2683"  "26993" "27032" "27346" "3303"  "3308" 
+ [37] "3312"  "3326"  "3329"  "3337"  "3416"  "3508"  "355"   "3553"  "3775" 
+ [46] "3832"  "4800"  "4891"  "4952"  "5058"  "51385" "53343" "5347"  "54541"
+ [55] "54812" "54868" "54957" "55256" "55620" "55635" "5564"  "55681" "5588" 
+ [64] "5603"  "5654"  "5873"  "64210" "64746" "6616"  "6657"  "6697"  "6790" 
+ [73] "6804"  "6839"  "6850"  "701"   "7099"  "7158"  "7358"  "7494"  "7503" 
+ [82] "79600" "79866" "80209" "813"   "81558" "8202"  "8204"  "843"   "84722"
+ [91] "8661"  "890"   "8974"  "9133"  "9531"  "9552"  "9793"  "9813"  "9868" 
+[100] "9918" 
+
+$`LUNG001_1HAE_24H:BRD-K80970344:10`
+  [1] "10046" "10320" "10451" "11325" "1152"  "1233"  "1385"  "154"   "1557" 
+ [10] "1638"  "174"   "1852"  "1870"  "197"   "2042"  "2048"  "2066"  "2147" 
+ [19] "2159"  "2168"  "2243"  "2267"  "230"   "23011" "23139" "23338" "23410"
+ [28] "23635" "259"   "2625"  "2690"  "2852"  "2887"  "29881" "29978" "3131" 
+ [37] "3303"  "3337"  "335"   "336"   "338"   "3398"  "3416"  "350"   "355"  
+ [46] "3698"  "3775"  "3800"  "3815"  "3848"  "3958"  "4067"  "4154"  "4208" 
+ [55] "4775"  "5345"  "54438" "54502" "54850" "55148" "55604" "5583"  "55837"
+ [64] "5588"  "55937" "5603"  "56955" "56997" "57178" "57406" "57715" "5891" 
+ [73] "5950"  "596"   "5971"  "6005"  "64109" "65123" "6616"  "6853"  "6915" 
+ [82] "727"   "735"   "7404"  "7448"  "7503"  "7852"  "78989" "8013"  "81563"
+ [91] "8204"  "843"   "8631"  "8788"  "8869"  "9104"  "9143"  "9218"  "9851" 
+[100] "9931" 
+
+$`LUNG001_1HAE_24H:BRD-K75430629:10`
+  [1] "10001"  "10153"  "10179"  "10205"  "10206"  "10329"  "10438"  "10572" 
+  [9] "10605"  "10610"  "10695"  "1525"   "1777"   "178"    "2042"   "2167"  
+ [17] "22826"  "23200"  "23256"  "23335"  "23338"  "23368"  "23536"  "2542"  
+ [25] "25976"  "26156"  "2625"   "27430"  "2745"   "2769"   "2852"   "2887"  
+ [33] "28985"  "29099"  "2920"   "29911"  "3066"   "375346" "377"    "3925"  
+ [41] "4048"   "4067"   "4118"   "4238"   "4313"   "4712"   "4738"   "4851"  
+ [49] "51160"  "51374"  "51399"  "51562"  "51573"  "51642"  "5283"   "53343" 
+ [57] "54438"  "5468"   "54969"  "55147"  "55288"  "5569"   "55825"  "55837" 
+ [65] "5588"   "5654"   "56912"  "57048"  "5720"   "5824"   "5828"   "5921"  
+ [73] "6120"   "6138"   "6284"   "66008"  "6632"   "7105"   "7265"   "7323"  
+ [81] "7341"   "7347"   "7358"   "7376"   "7874"   "79850"  "80145"  "808"   
+ [89] "81555"  "84159"  "84272"  "843"    "8731"   "8821"   "8869"   "9107"  
+ [97] "9446"   "958"    "9641"   "9950"  
+
+$`LUNG001_1HAE_24H:BRD-K52911425:10`
+  [1] "10000"  "10007"  "10057"  "1019"   "10320"  "10493"  "10610"  "10695" 
+  [9] "10810"  "11152"  "11168"  "11284"  "1200"   "1509"   "154"    "157680"
+ [17] "178"    "1829"   "1846"   "2048"   "220988" "23038"  "23224"  "23244" 
+ [25] "23410"  "23443"  "23461"  "23499"  "23588"  "2542"   "2548"   "25825" 
+ [33] "25897"  "2625"   "2690"   "26960"  "27072"  "27346"  "2770"   "2887"  
+ [41] "2896"   "2954"   "29799"  "29937"  "3074"   "323"    "3480"   "4208"  
+ [49] "4303"   "4594"   "4609"   "4851"   "4864"   "4969"   "51005"  "51171" 
+ [57] "5289"   "5359"   "54585"  "54850"  "55283"  "55604"  "55620"  "5603"  
+ [65] "5627"   "57192"  "57658"  "5925"   "5928"   "64080"  "6616"   "6655"  
+ [73] "6696"   "6804"   "6856"   "6919"   "7106"   "7220"   "727"    "7358"  
+ [81] "79090"  "79600"  "80199"  "80279"  "81855"  "8204"   "8574"   "8720"  
+ [89] "8731"   "8800"   "8821"   "8826"   "8878"   "89910"  "93594"  "960"   
+ [97] "9641"   "9710"   "9847"   "9911"  
+
+$`LUNG001_1HAE_24H:BRD-K63068307:10`
+  [1] "10000" "10036" "10046" "1019"  "10320" "10610" "11124" "11152" "11168"
+ [10] "11284" "11325" "1509"  "1846"  "2042"  "2067"  "2175"  "2195"  "22980"
+ [19] "23011" "23499" "2542"  "2548"  "25949" "25966" "27044" "27316" "2770" 
+ [28] "2804"  "2887"  "28969" "29997" "3108"  "3178"  "3202"  "3480"  "3800" 
+ [37] "3978"  "4067"  "4123"  "4144"  "4208"  "4303"  "4850"  "4969"  "5018" 
+ [46] "5058"  "51005" "51015" "5106"  "51160" "51385" "517"   "5355"  "5424" 
+ [55] "5468"  "54807" "5498"  "55148" "55893" "5607"  "5627"  "56654" "56997"
+ [64] "57178" "57406" "5909"  "5928"  "605"   "64428" "6599"  "6616"  "6919" 
+ [73] "7050"  "7077"  "7106"  "7157"  "727"   "7318"  "738"   "7852"  "78997"
+ [82] "79090" "79643" "80204" "8087"  "8208"  "83696" "8720"  "8731"  "8821" 
+ [91] "8826"  "9261"  "93210" "960"   "9665"  "9686"  "9738"  "9847"  "9918" 
+[100] "9968" 
+
+LUNG001_1HAE_24H:BRD-K02130563:10: 이 항목은 특정 샘플을 나타내는 키
+
+LUNG001_1HAE_24H: 세포주 (LUNG001)와 처치 시간 (24H)을 나타냄
+BRD-K02130563: 약물
+:10: 특정 농도나 용량 (10 µM)을 나타냄
+유전자 리스트 (e.g., "1026", "10382", ...): 각 항목은 특정 유전자를 나타내는 고유 식별자
+
+```{r}
+head(names(up_sigl))
+# [1] "LUNG001_1HAE_24H:BRD-K02130563:10" "LUNG001_1HAE_24H:BRD-K36529613:10"
+# [3] "LUNG001_1HAE_24H:BRD-K80970344:10" "LUNG001_1HAE_24H:BRD-K75430629:10"
+# [5] "LUNG001_1HAE_24H:BRD-K52911425:10" "LUNG001_1HAE_24H:BRD-K63068307:10"
+
+head(names(dn_sigl))
+# [1] "LUNG001_1HAE_24H:BRD-K02130563:10" "LUNG001_1HAE_24H:BRD-K36529613:10"
+# [3] "LUNG001_1HAE_24H:BRD-K80970344:10" "LUNG001_1HAE_24H:BRD-K75430629:10"
+# [5] "LUNG001_1HAE_24H:BRD-K52911425:10" "LUNG001_1HAE_24H:BRD-K63068307:10"
+
+# 약물 식별자 추출 함수
+extract_drug_id <- function(sample_name) {
+  return(strsplit(sample_name, ":")[[1]][2])
+}
+
+# up_sigl와 dn_sigl의 이름에서 약물 식별자 추출
+up_sigl_drugs <- sapply(names(up_sigl), extract_drug_id)
+dn_sigl_drugs <- sapply(names(dn_sigl), extract_drug_id)
+```
+
+**kmap의 up, down은 따로 존재-kmap_deg_sig로 DEG Rdata에 존재**
+```{r}
+kmap_up_sigl = lapply(kmap_deg_sig, function(xx) xx$up)
+kmap_dn_sigl = lapply(kmap_deg_sig, function(xx) xx$dn)
+
+
+library(parallel)
+library(dplyr)
+
+univ = unlist(up_sigl, dn_sigl, kmap_deg_sig) %>% unique
+
+up_ef <- NULL
+dn_ef <- NULL
+
+ef_res = mclapply(1:nrow(meta_merged_f), mc.cores = 60, function(xx){
+    cmap_id = meta_merged_f[xx, 'Cmap_sample']
+    kmap_id = meta_merged_f[xx, 'Kmap_sample']
+
+    cmap_up_deg = up_sigl[[cmap_id]]
+    kmap_up_deg = kmap_up_sigl[[kmap_id]]
+
+    up_ef = cal_ef(cmap_up_deg, kmap_up_deg, univ)
+
+    cmap_dn_deg = dn_sigl[[cmap_id]]
+    kmap_dn_deg = kmap_dn_sigl[[kmap_id]]
+
+    dn_ef = cal_ef(cmap_dn_deg, kmap_dn_deg, univ)
+
+    return (data.frame(Cmap_sample = cmap_id, Kmap_sample = kmap_id, up_ef = up_ef, dn_ef = dn_ef))
+})
+
+ef_res = do.call(rbind, ef_res)
+
+head(ef_res)
+```
+
+                                Cmap_sample         Kmap_sample     up_ef
+1  CPC011_MCF7_6H:BRD-K41051431-001-01-6:10 P01-100-KC0051-MCF7 0.8156676
+2 CPD002_MCF7_24H:BRD-K91289464-001-07-8:10 P01-100-KC0239-MCF7 0.6876394
+3 CPD001_MCF7_24H:BRD-K04804440-311-03-1:10 P01-100-KC0298-MCF7 0.6617994
+4  CPD003_MCF7_6H:BRD-K13240564-001-01-8:10 P01-100-KC0342-MCF7 0.9022248
+5  CPD002_MCF7_6H:BRD-K28935038-001-01-4:10 P01-100-KC0824-MCF7 1.1895021
+6 CPC011_MCF7_24H:BRD-A11990600-001-02-6:10 P01-100-KC0826-MCF7 0.4025075
+      dn_ef
+1 1.0351545
+2 1.2537921
+3 0.9190398
+4 0.5088328
+5 2.5986509
+6 0.4754705
+
+```{r}
+ef_res = merge(ef_res, merged_data_f)
+
+head(ef_res)
+```
+
+                                 Cmap_sample          Kmap_sample     up_ef
+1 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23  P12-100-KC1194-MCF7 2.2595308
+2 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23 P12-2500-KC1194-MCF7 1.5171803
+3 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23  P12-500-KC1194-MCF7 1.0183717
+4   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10  P03-100-KC0711-MCF7 1.5328249
+5   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10 P03-2500-KC0711-MCF7 1.0575620
+6   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10  P03-500-KC0711-MCF7 0.8266059
+      dn_ef Kmap_drug_lfc Kmap_dose_lfc     Cmap_drug PubChem_ID
+1 1.7407512        KC1194           100 BRD-A46335897       6014
+2 2.1801462        KC1194          2500 BRD-A46335897       6014
+3 3.2896110        KC1194           500 BRD-A46335897       6014
+4 1.9399916        KC0711           100 BRD-K26657438      57469
+5 0.5173745        KC0711          2500 BRD-K26657438      57469
+6 1.1931862        KC0711           500 BRD-K26657438      57469
+                             Cmap_sample_lfc Time_lfc Cmap_dose_lfc
+1 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23       6H       6.66 uM
+2 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23       6H       6.66 uM
+3 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23       6H       6.66 uM
+4   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10       6H         10 uM
+5   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10       6H         10 uM
+6   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10       6H         10 uM
+  Kmap_drug_stat Kmap_dose_stat       pert_id PubChem_CID
+1         KC1194            100 BRD-A46335897        6014
+2         KC1194           2500 BRD-A46335897        6014
+3         KC1194            500 BRD-A46335897        6014
+4         KC0711            100 BRD-K26657438       57469
+5         KC0711           2500 BRD-K26657438       57469
+6         KC0711            500 BRD-K26657438       57469
+                            Cmap_sample_stat Time_stat Cmap_dose_stat Kmap_drug
+1 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23        6H        6.66 uM    KC1194
+2 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23        6H        6.66 uM    KC1194
+3 CPC006_MCF7_6H:BRD-A46335897-003-05-4:6.23        6H        6.66 uM    KC1194
+4   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10        6H          10 uM    KC0711
+5   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10        6H          10 uM    KC0711
+6   CPC006_MCF7_6H:BRD-K26657438-001-01-2:10        6H          10 uM    KC0711
+  Kmap_dose Cmap_drug_tpm PubChem_ID_tpm Time Cmap_dose
+1       100 BRD-A46335897           6014   6H   6.66 uM
+2      2500 BRD-A46335897           6014   6H   6.66 uM
+3       500 BRD-A46335897           6014   6H   6.66 uM
+4       100 BRD-K26657438          57469   6H     10 uM
+5      2500 BRD-K26657438          57469   6H     10 uM
+6       500 BRD-K26657438          57469   6H     10 uM
+
+## EF 시각화(Histogram)
+```{r}
+library(ggplot2)
+
+# up_ef의 mean 및 median 계산
+up_ef_mean <- mean(ef_res$up_ef, na.rm = TRUE)
+up_ef_median <- median(ef_res$up_ef, na.rm = TRUE)
+
+# up_ef에 대한 히스토그램
+ggplot(ef_res, aes(x = up_ef)) +
+  geom_histogram(binwidth = 0.1, fill = "blue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of up_ef", x = "up_ef", y = "Frequency") +
+  theme_minimal() +
+  annotate("text", x = Inf, y = Inf, label = paste("Mean:", round(up_ef_mean, 2), "\nMedian:", round(up_ef_median, 2)),
+           hjust = 1.5, vjust = 1.5, size = 5, color = "blue")
+
+
+# dn_ef의 mean 및 median 계산
+dn_ef_mean <- mean(ef_res$dn_ef, na.rm = TRUE)
+dn_ef_median <- median(ef_res$dn_ef, na.rm = TRUE)           
+
+# dn_ef에 대한 히스토그램
+ggplot(ef_res, aes(x = dn_ef)) +
+  geom_histogram(binwidth = 0.1, fill = "red", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of dn_ef", x = "dn_ef", y = "Frequency") +
+  theme_minimal() +
+  annotate("text", x = Inf, y = Inf, label = paste("Mean:", round(dn_ef_mean, 2), "\nMedian:", round(dn_ef_median, 2)),
+           hjust = 1.5, vjust = 1.5, size = 5, color = "red")
+
+# 각각 mean, median이 1.5, 1.15 / 1.53, 1.25
+
+
+# 로그 취한 값
+
+library(ggplot2)
+
+# 로그 변환 (로그 변환 시 0 값을 처리하기 위해 아주 작은 값을 더함)
+ef_res$log_up_ef <- log10(ef_res$up_ef + 1e-6)
+ef_res$log_dn_ef <- log10(ef_res$dn_ef + 1e-6)
+
+# 로그 변환된 up_ef와 dn_ef의 mean 및 median 계산
+log_up_ef_mean <- mean(ef_res$log_up_ef, na.rm = TRUE)
+log_up_ef_median <- median(ef_res$log_up_ef, na.rm = TRUE)
+
+log_dn_ef_mean <- mean(ef_res$log_dn_ef, na.rm = TRUE)
+log_dn_ef_median <- median(ef_res$log_dn_ef, na.rm = TRUE)
+
+# 로그 변환된 up_ef에 대한 히스토그램
+#ggplot(ef_res, aes(x = up_ef, fill = Kmap_dose_lfc)) +
+#  geom_histogram(binwidth = 0.1, color = "black", alpha = 0.7) +
+#  labs(title = "Histogram of log10(up_ef)", x = "log10(up_ef)", y = "Frequency") +
+#  scale_y_continuous(trans = 'log10') + 
+#  theme_minimal() +
+#  annotate("text", x = Inf, y = Inf, label = paste("Log Mean:", round(up_ef_mean, 2), "\nLog Median:", round(up_ef_median, 2)),
+#           hjust = 1, vjust = 1, size = 5, color = "blue")
+
+ggplot(ef_res, aes(x = up_ef, fill = as.factor(Kmap_dose_lfc))) +
+  geom_histogram(binwidth = 0.1, color = "black", alpha = 0.5, position = "identity") +
+  labs(title = "Overlapping Histogram of up_ef", x = "up_ef", y = "Frequency", fill = "Kmap Dose LFC") +
+  scale_x_continuous(trans = 'log10') + 
+  theme_minimal() + 
+  annotate("text", x = Inf, y = Inf, label = paste("Log Mean:", round(up_ef_mean, 2), "\nLog Median:", round(up_ef_median, 2)),
+           hjust = 1, vjust = 1, size = 5, color = "blue")
+# mean : 1.5, median : 1.15
+
+
+# 로그 변환된 dn_ef에 대한 히스토그램
+#ggplot(ef_res, aes(x = log_dn_ef)) +
+#  geom_histogram(binwidth = 0.1, fill = "red", color = "black", alpha = 0.7) +
+#  labs(title = "Histogram of log10(dn_ef)", x = "log10(dn_ef)", y = "Frequency") +
+#  theme_minimal() +
+#  annotate("text", x = Inf, y = Inf, label = paste("Log Mean:", round(log_dn_ef_mean, 2), "\nLog Median:", round(log_dn_ef_median, 2)),
+#           hjust = 1.5, vjust = 1.5, size = 5, color = "red")
+
+ggplot(ef_res, aes(x = dn_ef, fill = as.factor(Kmap_dose_lfc))) +
+  geom_histogram(binwidth = 0.1, color = "black", alpha = 0.5, position = "identity") +
+  labs(title = "Overlapping Histogram of dn_ef", x = "dn_ef", y = "Frequency", fill = "Kmap Dose LFC") +
+  scale_x_continuous(trans = 'log10') + 
+  theme_minimal() + 
+  annotate("text", x = Inf, y = Inf, label = paste("Log Mean:", round(dn_ef_mean, 2), "\nLog Median:", round(dn_ef_median, 2)),
+           hjust = 1, vjust = 1, size = 5, color = "red")
+# 각각 mean, median이 1.53, 1.25
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## 아래는 Cmap만 가지고 진행한 경우
+**meta에서 필요한 열만 추출**
+```{r}
+# 필요한 열만 추출
+selected_meta <- meta[, c("Cmap_sample", "Kmap_sample", "Cmap_drug")]
+
+# 결과 출력
+print(head(selected_meta))
+```
+  A tibble: 6 × 3
+  Cmap_sample                               Kmap_sample         Cmap_drug    
+  <chr>                                     <chr>               <chr>        
+1 CPC011_MCF7_6H:BRD-K41051431-001-01-6:10  P01-100-KC0051-MCF7 BRD-K41051431
+2 CPD002_MCF7_24H:BRD-K91289464-001-07-8:10 P01-100-KC0239-MCF7 BRD-K91289464
+3 CPD001_MCF7_24H:BRD-K04804440-311-03-1:10 P01-100-KC0298-MCF7 BRD-K04804440
+4 CPD003_MCF7_6H:BRD-K13240564-001-01-8:10  P01-100-KC0342-MCF7 BRD-K13240564
+5 CPD002_MCF7_6H:BRD-K28935038-001-01-4:10  P01-100-KC0824-MCF7 BRD-K28935038
+6 CPC011_MCF7_24H:BRD-A11990600-001-02-6:10 P01-100-KC0826-MCF7 BRD-A11990600
+
+**여기에 각 샘플마다 up_sigl과 dn_sigl 매칭하기**
+```{r}
+# up_sigl과 dn_sigl 데이터를 데이터 프레임으로 변환
+up_sigl_df <- data.frame(
+  Cmap_sample = names(up_sigl),
+  up_sigl = I(up_sigl)
+)
+dn_sigl_df <- data.frame(
+  Cmap_sample = names(dn_sigl),
+  dn_sigl = I(dn_sigl)
+)
+
+# up_sigl_df와 dn_sigl_df에서 BRD ID 추출
+up_sigl_df$Cmap_drug <- sapply(strsplit(up_sigl_df$Cmap_sample, ":"), function(x) x[2])
+dn_sigl_df$Cmap_drug <- sapply(strsplit(dn_sigl_df$Cmap_sample, ":"), function(x) x[2])
+
+# selected_meta에 up_sigl 추가 (Cmap_drug를 기준으로 병합)
+selected_meta <- merge(selected_meta, up_sigl_df[, c("Cmap_drug", "up_sigl")], by = "Cmap_drug", all.x = TRUE)
+
+# selected_meta에 dn_sigl 추가 (Cmap_drug를 기준으로 병합)
+selected_meta <- merge(selected_meta, dn_sigl_df[, c("Cmap_drug", "dn_sigl")], by = "Cmap_drug", all.x = TRUE)
+
+# 결과 출력
+print(head(selected_meta))
+```
+      Cmap_drug                               Cmap_sample          Kmap_sample
+1 BRD-A00827783 CPD001_MCF7_24H:BRD-A00827783-001-18-8:10  P05-100-KC0476-MCF7
+2 BRD-A00827783 CPD001_MCF7_24H:BRD-A00827783-001-18-8:10 P05-2500-KC0476-MCF7
+3 BRD-A00827783 CPD001_MCF7_24H:BRD-A00827783-001-18-8:10  P05-500-KC0476-MCF7
+4 BRD-A07395371  CPD003_MCF7_6H:BRD-A07395371-003-06-8:10  P11-100-KC0518-MCF7
+5 BRD-A07395371  CPD003_MCF7_6H:BRD-A07395371-003-06-8:10  P11-500-KC0518-MCF7
+6 BRD-A07395371  CPD003_MCF7_6H:BRD-A07395371-003-06-8:10 P11-2500-KC0518-MCF7
+  up_sigl dn_sigl
+1      NA      NA
+2      NA      NA
+3      NA      NA
+4      NA      NA
+5      NA      NA
+6      NA      NA
+
+밑에 NA가 아닌 값이 있을거라는 믿음으로..
+
+```{r}
+# up_sigl 또는 dn_sigl에 NA가 아닌 값이 있는 행들만 필터링
+matched_data <- selected_meta[!is.na(selected_meta$up_sigl) | !is.na(selected_meta$dn_sigl), ]
+
+# matched_data의 상위 6개 행만 출력
+print(head(matched_data))
+```
+       Cmap_drug                              Cmap_sample         Kmap_sample
+13 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+14 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+15 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+16 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+17 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+18 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+        up_sigl      dn_sigl
+13 10202, 1.... 10049, 1....
+14 10202, 1.... 10016, 1....
+15 10202, 1.... 1001, 10....
+16 10202, 1.... 10059, 1....
+17 10202, 1.... 10096, 1....
+18 10202, 1.... 10012925....
+
+```{r}
+# 특정 폴더에 matched_data를 CSV 파일로 저장
+write.csv(matched_data, "~/Documents/my_data/matched_data.csv", row.names = FALSE)
+
+
+# EF를 각 up발로 진행했을 경우
+# 1. 유전자 ID 추출 및 교집합 계산 함수 정의
+extract_gene_ids <- function(sig_str) {
+  # "10202, 1.5, 10049, 2.3, ..."에서 유전자 ID만 추출
+  gene_ids <- unlist(strsplit(sig_str, ",\\s*"))
+  gene_ids <- gene_ids[seq(1, length(gene_ids), by=2)]  # 홀수 인덱스에 유전자 ID가 있음
+  return(gene_ids)
+}
+
+calculate_ef_for_row <- function(cmap_sigl, kmap_sigl) {
+  cmap_genes <- extract_gene_ids(cmap_sigl)
+  kmap_genes <- extract_gene_ids(kmap_sigl)
+  
+  # 교집합 계산
+  intersection <- length(intersect(cmap_genes, kmap_genes))
+  
+  # EF 계산: (intersection / 총 CMAP 유전자 수) / (총 KMAP 유전자 수에서의 비율)
+  if (length(cmap_genes) == 0 || length(kmap_genes) == 0) {
+    return(NA)
+  }
+  ef <- (intersection / length(cmap_genes)) / (length(intersect(cmap_genes, kmap_genes)) / length(kmap_genes))
+  return(ef)
+}
+
+# 2. 각 행에 대해 EF 계산
+matched_data$EF_up_row <- mapply(calculate_ef_for_row, matched_data$up_sigl, matched_data$up_sigl)
+
+# 3. 결과 출력
+head(matched_data[, c("up_sigl", "EF_up_row")])
+```
+        up_sigl EF_up_row
+13 10202, 1....         1
+14 10202, 1....         1
+15 10202, 1....         1
+16 10202, 1....         1
+17 10202, 1....         1
+18 10202, 1....         1
+
+```{r}
+# EF를 up, down을 기준으로 계산한 경우
+calculate_ef <- function(gene_overlap, total_hits, total_rows) {
+  # 히트 비율이 0일 경우를 대비하여 추가 조건 처리
+  if (total_hits == 0) {
+    return(NA)
+  }
+  # 각 행의 EF 계산
+  ef <- (gene_overlap / 1) / (total_hits / total_rows)
+  return(ef)
+}
+matched_data$total_hits <- sum(matched_data$gene_overlap > hit_threshold)
+matched_data$total_rows <- nrow(matched_data)
+matched_data$EF <- mapply(calculate_ef, matched_data$gene_overlap, matched_data$total_hits, matched_data$total_rows)
+
+# 3. 결과 출력
+head(matched_data)
+```
+       Cmap_drug                              Cmap_sample         Kmap_sample
+13 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+14 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+15 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+16 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+17 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+18 BRD-A13084692 DOSBIO002_MCF7_24H:BRD-A13084692:1.11111 P12-500-KC1481-MCF7
+        up_sigl      dn_sigl gene_overlap total_hits total_rows        EF
+13 10202, 1.... 10049, 1....            4         12     298593  99531.00
+14 10202, 1.... 10016, 1....            3         12     298593  74648.25
+15 10202, 1.... 1001, 10....            5         12     298593 124413.75
+16 10202, 1.... 10059, 1....            1         12     298593  24882.75
+17 10202, 1.... 10096, 1....            0         12     298593      0.00
+18 10202, 1.... 10012925....            0         12     298593      0.00
+
