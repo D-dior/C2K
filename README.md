@@ -1,1 +1,11 @@
 # C2K
+![Cmap To kmap](https://github.com/user-attachments/assets/96891b98-34b1-42ed-8786-a3c8b6ed405f)
+![Cmap To kmap (1)](https://github.com/user-attachments/assets/c341074d-25a0-484c-a020-3994f28bb172)
+![Cmap To kmap (2)](https://github.com/user-attachments/assets/5c1382ac-7def-49b7-b5b2-8fdf1e20ce21)
+![Cmap To kmap (3)](https://github.com/user-attachments/assets/6694dbc6-c58e-4e5c-977e-819c1f201f06)
+![Cmap To kmap (4)](https://github.com/user-attachments/assets/691da3e4-4f2b-429e-8882-11a1b944f177)
+![Cmap To kmap (5)](https://github.com/user-attachments/assets/389228d7-126c-40f3-87b5-c5b0e358630f)
+![Cmap To kmap (6)](https://github.com/user-attachments/assets/76aa7d2a-6b95-4877-8ca2-3561ec4918fb)
+![Cmap To kmap (7)](https://github.com/user-attachments/assets/6a417261-e181-4c30-8519-029fa15848cc)
+![Cmap To kmap (8)](https://github.com/user-attachments/assets/2d9daf0c-502f-4936-94f9-6f704c94bb10)
+![Cmap To kmap (9)](https://github.com/user-attachments/assets/7a59ab82-e494-44f9-9097-b3f0a4b9c169)
